@@ -1,0 +1,16 @@
+package telran.net;
+
+import org.json.JSONObject;
+import static telran.net.tcpConfigurationProperties.*;
+
+public record Request( String requestType, String requestData) {
+	
+	@Override
+	public String toString() {
+		JSONObject jsonObject = new JSONObject();
+		jsonObject.put(REQUEST_TYPE_FIELD, requestType);
+		jsonObject.put(RESPONSE_CODE_FIELD, requestData);
+		return jsonObject.toString();
+	}
+
+}
