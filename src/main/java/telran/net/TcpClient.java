@@ -1,40 +1,86 @@
 package telran.net;
-
-import static telran.net.tcpConfigurationProperties.*;
-
 import java.io.*;
 import java.net.*;
-
+import java.time.Instant;
+import static telran.net.tcpConfigurationProperties.*;
 import org.json.JSONObject;
-
-public class TcpClient {
+public class TcpClient implements Closeable{
+	private static final long DEFAULT_INTERVAL = 3000;
+	private static final int DEFAULT_NUMBER_ATTEMPTS = 10;
+	String hostName;
 	int port;
-	String hostname;
-
-	public TcpClient(int port, String hostname) {
+	Socket socket;
+	BufferedReader receiver;
+	PrintStream sender;
+	long interval;
+	int nAttempts;
+	public TcpClient(String hostName, int port, long interval, int nAttempts) {
+		this.hostName = hostName;
 		this.port = port;
-		this.hostname = hostname;
-	}
-
-	public Response sendAndRecieve(Request request) {
-		String response = null;
-		try (Socket socket = new Socket(hostname, port);
-				BufferedReader reciever = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-				PrintStream sender = new PrintStream(socket.getOutputStream())) {
-			sender.println(request.toString());
-			response = reciever.readLine();
-		} catch (Exception e) {
-			System.out.println(e);
+		this.interval = interval;
+		this.nAttempts = nAttempts;
+		if(this.interval < 0) {
+			this.interval = 0;
 		}
-		return getResponseFromJSONString(response);
-
+		connect();
 	}
-
-	private Response getResponseFromJSONString(String response) {
-		JSONObject jsonObj = new JSONObject(response);
-		ResponseCode responseType = ResponseCode.valueOf(jsonObj.getString(RESPONSE_CODE_FIELD));
-		String responseData = jsonObj.getString(RESPONSE_DATA_FIELD);
-		return new Response(responseType, responseData);
+	private void connect() {
+		int counter = nAttempts;
+		do {
+			try {
+				socket = new Socket(hostName, port);
+				sender = new PrintStream(socket.getOutputStream());
+				receiver = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+				counter = 0;
+				
+			}catch(IOException e) {
+				waitForInterval();
+				counter--;
+			}
+			
+		}while(counter != 0);
+		
 	}
-
+	private void waitForInterval() {
+		Instant finished = Instant.now().plusMillis(interval);
+		while(Instant.now().isBefore(finished)) {
+			
+		}
+		
+	}
+	public TcpClient(String hostName, int port) {
+		this(hostName, port, DEFAULT_INTERVAL, DEFAULT_NUMBER_ATTEMPTS);
+	}
+	@Override
+	public void close()  {
+		try {
+			socket.close();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		
+	}
+	public String sendAndReceive(Request request) {
+		try {
+			sender.println(request);
+			String responseJSON = receiver.readLine();
+			if (responseJSON == null) {
+				throw new RuntimeException("Server closed connection");
+			}
+			JSONObject jsonObj = new JSONObject(responseJSON);
+			ResponseCode responseCode = jsonObj.getEnum(ResponseCode.class,
+					RESPONSE_CODE_FIELD);
+			String responseData = jsonObj.getString(RESPONSE_DATA_FIELD);
+			if(responseCode != ResponseCode.OK) {
+				throw new RuntimeException(responseData);
+			}
+			return responseData;
+			
+		} catch (IOException e) {
+			connect();
+			throw new RuntimeException("Server is unavailable, repeat later on");
+		}
+	}
+	
+	
 }

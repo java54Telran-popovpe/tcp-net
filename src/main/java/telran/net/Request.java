@@ -9,7 +9,7 @@ public record Request( String requestType, String requestData) {
 	public String toString() {
 		JSONObject jsonObject = new JSONObject();
 		jsonObject.put(REQUEST_TYPE_FIELD, requestType);
-		jsonObject.put(RESPONSE_CODE_FIELD, requestData);
+		jsonObject.put(REQUEST_DATA_FIELD, requestData);
 		return jsonObject.toString();
 	}
 

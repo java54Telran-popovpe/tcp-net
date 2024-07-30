@@ -1,5 +1,5 @@
 package telran.net;
 
 public enum ResponseCode {
-	OK, WRONG_REQUAST_TYPE, WRONG_REQUEST_DATA
+	OK, WRONG_REQUEST_TYPE, WRONG_REQUEST_DATA
 }
