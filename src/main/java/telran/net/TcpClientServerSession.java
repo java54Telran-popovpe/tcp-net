@@ -3,11 +3,12 @@ package telran.net;
 import java.net.*;
 import java.io.*;
 
-public class TcpClientServerSession extends Thread{
+public class TcpClientServerSession implements Runnable {
 	static final int socketTimeOut = 1000;
 	static final int clientSessionTimeOut = 60_000;
 	Socket socket;
 	Protocol protocol;
+	TcpServer tcpServer;
 	boolean running = true;
 	
 	public void shutdown() {
@@ -15,13 +16,12 @@ public class TcpClientServerSession extends Thread{
 		running = false;
 	}
 
-	public TcpClientServerSession(Socket socket, Protocol protocol) {
+	public TcpClientServerSession(Socket socket, Protocol protocol, TcpServer tcpServer) {
 		this.socket = socket;
-		//TODO
-		//using the method setSoTimeout and some solution for getting session to know about shutdown
-		//you should stop the thread after shutdown command
 		this.protocol = protocol;
+		this.tcpServer = tcpServer;
 	}
+	
 	public void run() {
 		try (BufferedReader receiver =
 				new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -29,7 +29,6 @@ public class TcpClientServerSession extends Thread{
 			socket.setSoTimeout(socketTimeOut);
 			String line = null;
 			//FIXME 
-			//figure out solution for exiting from the thread after shutdown
 			int timeOutCounter = 0;
 			while(running && timeOutCounter < clientSessionTimeOut) {
 				try {
@@ -41,13 +40,10 @@ public class TcpClientServerSession extends Thread{
 				} catch ( SocketTimeoutException e ) {
 					timeOutCounter += socketTimeOut;
 				}
+				running = tcpServer.running;
 				
 			}
 			System.out.println("Session connection closed");
-			//TODO handling SocketTimeoutException for exiting from the thread on two conditions
-			//1. Shutdown has been performed
-			//2. Thread exists in IDLE state more than 1 minute
-			//exiting from the cycle should be followed by closing connection
 			socket.close();
 			
 		} catch (Exception e) {
